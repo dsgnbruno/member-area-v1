@@ -20,8 +20,7 @@ function App() {
   });
   const [isAuthenticated, setIsAuthenticated] = useState(() => {
     // Check if user is logged in
-    return localStorage.getItem('userLoggedIn') === 'true' || 
-           sessionStorage.getItem('userLoggedIn') === 'true';
+    return localStorage.getItem('userLoggedIn') === 'true';
   });
 
   // Apply theme to document when it changes
@@ -33,13 +32,15 @@ function App() {
   // Check authentication status when it changes in storage
   useEffect(() => {
     const checkAuth = () => {
-      const isLoggedIn = localStorage.getItem('userLoggedIn') === 'true' || 
-                         sessionStorage.getItem('userLoggedIn') === 'true';
+      const isLoggedIn = localStorage.getItem('userLoggedIn') === 'true';
       setIsAuthenticated(isLoggedIn);
     };
 
     // Listen for storage events (for multi-tab support)
     window.addEventListener('storage', checkAuth);
+    
+    // Also check on mount
+    checkAuth();
     
     return () => {
       window.removeEventListener('storage', checkAuth);
@@ -85,6 +86,7 @@ function App() {
                     
                     <Routes>
                       <Route path="/" element={<DashboardPage />} />
+                      <Route path="/dashboard" element={<Navigate to="/" replace />} />
                       <Route path="/courses" element={<CoursesPage />} />
                       <Route path="/bookmarks" element={<BookmarksPage />} />
                       <Route path="/settings" element={<SettingsPage />} />

@@ -16,7 +16,7 @@ const LoginPage: React.FC = () => {
   useEffect(() => {
     const isLoggedIn = localStorage.getItem('userLoggedIn') === 'true';
     if (isLoggedIn) {
-      navigate('/dashboard');
+      navigate('/');
     }
   }, [navigate]);
 
@@ -47,8 +47,11 @@ const LoginPage: React.FC = () => {
       const authResponse = await loginWithNocoDB({ email, password });
       
       if (authResponse.success) {
-        // Redirect to dashboard
-        navigate('/dashboard');
+        // Important: Use a short timeout to allow React state updates to complete
+        // before navigation, preventing the freeze issue
+        setTimeout(() => {
+          navigate('/');
+        }, 100);
       } else {
         setError(authResponse.message);
       }
