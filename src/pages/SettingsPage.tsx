@@ -36,50 +36,38 @@ const SettingsPage: React.FC = () => {
             <div>
               <h2 className="text-xl font-bold mb-6">Profile Settings</h2>
               
-              <div className="flex flex-col md:flex-row gap-8 mb-8">
-                <div className="flex-1">
-                  <form className="space-y-4">
-                    <div className="form-control">
-                      <label className="label">
-                        <span className="label-text">Full Name</span>
-                      </label>
-                      <input type="text" placeholder="John Doe" className="input input-bordered w-full" />
-                    </div>
-                    
-                    <div className="form-control">
-                      <label className="label">
-                        <span className="label-text">Email Address</span>
-                      </label>
-                      <input type="email" placeholder="john@example.com" className="input input-bordered w-full" />
-                    </div>
-                    
-                    <div className="form-control">
-                      <label className="label">
-                        <span className="label-text">Bio</span>
-                      </label>
-                      <textarea className="textarea textarea-bordered h-24" placeholder="Tell us about yourself"></textarea>
-                    </div>
-                    
-                    <div className="form-control">
-                      <label className="label">
-                        <span className="label-text">Location</span>
-                      </label>
-                      <input type="text" placeholder="City, Country" className="input input-bordered w-full" />
-                    </div>
-                    
-                    <button className="btn btn-primary">Save Changes</button>
-                  </form>
-                </div>
-                
-                <div className="flex flex-col items-center">
-                  <div className="avatar mb-4">
-                    <div className="w-32 rounded-full">
-                      <img src="https://i.pravatar.cc/128" alt="Profile" />
-                    </div>
+              <div className="mb-8">
+                <form className="space-y-4">
+                  <div className="form-control">
+                    <label className="label">
+                      <span className="label-text">Full Name</span>
+                    </label>
+                    <input type="text" placeholder="John Doe" className="input input-bordered w-full" />
                   </div>
-                  <button className="btn btn-outline btn-sm mb-2">Change Photo</button>
-                  <button className="btn btn-ghost btn-sm text-error">Remove</button>
-                </div>
+                  
+                  <div className="form-control">
+                    <label className="label">
+                      <span className="label-text">Email Address</span>
+                    </label>
+                    <input type="email" placeholder="john@example.com" className="input input-bordered w-full" />
+                  </div>
+                  
+                  <div className="form-control">
+                    <label className="label">
+                      <span className="label-text">Bio</span>
+                    </label>
+                    <textarea className="textarea textarea-bordered h-24" placeholder="Tell us about yourself"></textarea>
+                  </div>
+                  
+                  <div className="form-control">
+                    <label className="label">
+                      <span className="label-text">Location</span>
+                    </label>
+                    <input type="text" placeholder="City, Country" className="input input-bordered w-full" />
+                  </div>
+                  
+                  <button className="btn btn-primary">Save Changes</button>
+                </form>
               </div>
               
               <div className="divider"></div>

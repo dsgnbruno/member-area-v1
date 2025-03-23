@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, LogIn, AlertCircle } from 'lucide-react';
 import Logo from '../components/Logo';
@@ -11,6 +11,14 @@ const LoginPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const navigate = useNavigate();
+
+  // Check if user is already logged in
+  useEffect(() => {
+    const isLoggedIn = localStorage.getItem('userLoggedIn') === 'true';
+    if (isLoggedIn) {
+      navigate('/dashboard');
+    }
+  }, [navigate]);
 
   const validateEmail = (email: string): boolean => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -40,7 +48,7 @@ const LoginPage: React.FC = () => {
       
       if (authResponse.success) {
         // Redirect to dashboard
-        navigate('/');
+        navigate('/dashboard');
       } else {
         setError(authResponse.message);
       }
@@ -56,7 +64,7 @@ const LoginPage: React.FC = () => {
     <div className="min-h-screen bg-base-100 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="flex justify-center mb-8">
-          <Logo theme="light" size={60} />
+          <Logo theme="light" maxHeight={45} />
         </div>
         
         <div className="bg-base-100 shadow-lg rounded-xl p-8 border border-base-200">

@@ -43,15 +43,15 @@ const Header: React.FC<HeaderProps> = ({
             {sidebarOpen ? <X size={20} /> : <Menu size={20} />}
           </button>
           
-          <Link to="/" className="flex items-center ml-2">
+          <Link to="/" className="flex items-center ml-2" style={{ marginRight: '30px' }}>
             <Logo theme={theme} size={32} />
             <span className="text-xl font-bold ml-2 hidden md:inline-block">LearnHub</span>
           </Link>
         </div>
         
-        <div className="flex-none gap-2">
+        <div className="flex items-center gap-4">
           <button 
-            className="btn btn-ghost btn-circle"
+            className="btn btn-ghost btn-circle flex items-center justify-center"
             onClick={toggleTheme}
             aria-label={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
           >
@@ -59,8 +59,8 @@ const Header: React.FC<HeaderProps> = ({
           </button>
           
           <div className="dropdown dropdown-end">
-            <label tabIndex={0} className="btn btn-ghost btn-circle avatar">
-              <div className="w-10 rounded-full bg-primary/10 flex items-center justify-center">
+            <label tabIndex={0} className="btn btn-ghost btn-circle flex items-center justify-center">
+              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
                 <User size={20} />
               </div>
             </label>

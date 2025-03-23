@@ -19,111 +19,209 @@ interface AuthResponse {
   user?: any;
 }
 
+// Simplified direct authentication function
 export const loginWithNocoDB = async (credentials: LoginCredentials): Promise<AuthResponse> => {
   try {
-    // First, verify we can connect to NocoDB
-    // For v0.262.4, we need to use the correct API endpoint format
-    const testConnectionUrl = `${NOCODB_CONFIG.host}api/v1/db/meta/projects/${NOCODB_CONFIG.baseId}/tables`;
+    console.log('Attempting login with credentials:', { email: credentials.email, passwordProvided: !!credentials.password });
     
-    console.log('Testing connection to:', testConnectionUrl);
+    // Use the simplest possible API endpoint format
+    // First, try to get all users to verify connection and understand response format
+    const listUrl = `${NOCODB_CONFIG.host}api/v1/db/data/noco/${NOCODB_CONFIG.baseId}/${NOCODB_CONFIG.tableId}`;
     
-    const testResponse = await fetch(testConnectionUrl, {
+    console.log('Fetching users list to verify connection:', listUrl);
+    
+    const listResponse = await fetch(listUrl, {
       method: 'GET',
       headers: {
         'xc-token': NOCODB_CONFIG.apiToken,
         'Accept': 'application/json'
-      }
+      },
+      signal: AbortSignal.timeout(15000)
     });
     
-    if (!testResponse.ok) {
-      console.error('NocoDB connection test failed:', testResponse.status, await testResponse.text());
+    if (!listResponse.ok) {
+      console.error('Failed to fetch users list:', listResponse.status, await listResponse.text());
       return {
         success: false,
-        message: 'Could not connect to authentication service'
+        message: 'Could not connect to authentication service. Please try again later.'
       };
     }
     
-    // Now find the user by email using the correct v0.262.4 API format
-    const apiUrl = `${NOCODB_CONFIG.host}api/v1/db/data/v1/${NOCODB_CONFIG.baseId}/${NOCODB_CONFIG.tableId}`;
-    const whereClause = `(${NOCODB_CONFIG.emailFieldId},eq,${encodeURIComponent(credentials.email)})`;
+    const listData = await listResponse.json();
+    console.log('Users list response structure:', 
+      Object.keys(listData),
+      'Total records:', Array.isArray(listData.list) ? listData.list.length : 'unknown format'
+    );
     
-    console.log('API URL:', `${apiUrl}?where=${whereClause}`);
-    
-    const response = await fetch(`${apiUrl}?where=${whereClause}`, {
-      method: 'GET',
-      headers: {
-        'xc-token': NOCODB_CONFIG.apiToken,
-        'Accept': 'application/json'
-      }
-    });
-    
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('API Error:', response.status, errorText);
-      throw new Error(`API request failed with status ${response.status}: ${errorText}`);
+    // Extract users from the response
+    let users = [];
+    if (Array.isArray(listData)) {
+      users = listData;
+    } else if (listData.list && Array.isArray(listData.list)) {
+      users = listData.list;
+    } else if (listData.data && Array.isArray(listData.data)) {
+      users = listData.data;
+    } else {
+      console.error('Unexpected users list format:', listData);
+      return {
+        success: false,
+        message: 'Authentication error: Unexpected data format'
+      };
     }
     
-    const responseData = await response.json();
-    console.log('Response data:', responseData);
+    // Log the first user structure to understand field mapping
+    if (users.length > 0) {
+      console.log('Sample user data structure:', 
+        Object.keys(users[0]),
+        'Email field exists:', NOCODB_CONFIG.emailFieldId in users[0] || 'email' in users[0],
+        'Password field exists:', NOCODB_CONFIG.passwordFieldId in users[0] || 'password' in users[0]
+      );
+    } else {
+      console.log('No users found in the database');
+      return {
+        success: false,
+        message: 'Authentication error: No users found in database'
+      };
+    }
     
-    // In v0.262.4, the response format might be different
-    const users = Array.isArray(responseData) ? responseData : (responseData.list || []);
+    // Manual search for the user with matching email
+    const user = users.find(u => {
+      // Try different ways to access the email field
+      const userEmail = u[NOCODB_CONFIG.emailFieldId] || u.email || u.Email || null;
+      return userEmail && userEmail.toLowerCase() === credentials.email.toLowerCase();
+    });
     
-    // Check if user exists
-    if (users.length === 0) {
+    if (!user) {
       console.log('No user found with email:', credentials.email);
       return {
         success: false,
-        message: 'User not found'
+        message: 'Invalid email or password'
       };
     }
     
-    // Get the first matching user
-    const userData = users[0];
+    console.log('Found user with matching email');
     
-    // Log the actual field values for debugging
-    console.log('Found user:', userData);
-    console.log('Email field value:', userData[NOCODB_CONFIG.emailFieldId]);
-    console.log('Password field value:', userData[NOCODB_CONFIG.passwordFieldId]);
-    console.log('Provided password:', credentials.password);
+    // Try different ways to access the password field
+    const storedPassword = user[NOCODB_CONFIG.passwordFieldId] || user.password || user.Password;
     
-    // Get the password field from the response
-    const storedPassword = userData[NOCODB_CONFIG.passwordFieldId];
-    
-    // Check if password field exists in the response
     if (storedPassword === undefined) {
-      console.error('Password field not found in response');
+      console.error('Password field not found in user data. Available fields:', Object.keys(user));
       return {
         success: false,
         message: 'Authentication error: Password field not found'
       };
     }
     
-    // Compare the provided password with the stored password
+    // Simple string comparison of passwords
     if (storedPassword === credentials.password) {
-      // Password matches, login successful
+      console.log('Password match successful');
+      
+      // Store authentication state
       localStorage.setItem('userLoggedIn', 'true');
-      localStorage.setItem('userData', JSON.stringify(userData));
+      localStorage.setItem('userData', JSON.stringify(user));
       
       return {
         success: true,
         message: 'Login successful',
-        user: userData
+        user: user
       };
     } else {
-      // Password doesn't match
       console.log('Password mismatch');
       return {
         success: false,
-        message: 'Invalid password'
+        message: 'Invalid email or password'
       };
     }
   } catch (error) {
     console.error('Login error:', error);
     
+    if (error instanceof DOMException && error.name === 'TimeoutError') {
+      return {
+        success: false,
+        message: 'Connection to authentication service timed out. Please try again later.'
+      };
+    }
+    
     return {
       success: false,
-      message: 'An unexpected error occurred. Please try again.'
+      message: 'An unexpected error occurred. Please try again later.'
+    };
+  }
+};
+
+// Direct API test function
+export const testNocoDBConnection = async (): Promise<{success: boolean, message: string, details?: any}> => {
+  try {
+    // Test direct data access - simplest possible approach
+    const testUrl = `${NOCODB_CONFIG.host}api/v1/db/data/noco/${NOCODB_CONFIG.baseId}/${NOCODB_CONFIG.tableId}/count`;
+    console.log('Testing direct data access at:', testUrl);
+    
+    const response = await fetch(testUrl, {
+      method: 'GET',
+      headers: {
+        'xc-token': NOCODB_CONFIG.apiToken,
+        'Accept': 'application/json'
+      },
+      signal: AbortSignal.timeout(10000)
+    });
+    
+    if (!response.ok) {
+      return {
+        success: false,
+        message: `NocoDB connection failed: ${response.status}`,
+        details: await response.text()
+      };
+    }
+    
+    const data = await response.json();
+    
+    // Try to fetch one record to verify field structure
+    const sampleUrl = `${NOCODB_CONFIG.host}api/v1/db/data/noco/${NOCODB_CONFIG.baseId}/${NOCODB_CONFIG.tableId}?limit=1`;
+    console.log('Fetching sample record at:', sampleUrl);
+    
+    const sampleResponse = await fetch(sampleUrl, {
+      method: 'GET',
+      headers: {
+        'xc-token': NOCODB_CONFIG.apiToken,
+        'Accept': 'application/json'
+      },
+      signal: AbortSignal.timeout(10000)
+    });
+    
+    if (!sampleResponse.ok) {
+      return {
+        success: true,
+        message: 'Connection successful but could not fetch sample record',
+        details: {
+          count: data,
+          sampleError: await sampleResponse.text()
+        }
+      };
+    }
+    
+    const sampleData = await sampleResponse.json();
+    let fieldInfo = 'No records found';
+    
+    // Extract field information from sample record
+    if (sampleData.list && sampleData.list.length > 0) {
+      const record = sampleData.list[0];
+      fieldInfo = `Fields: ${Object.keys(record).join(', ')}`;
+    }
+    
+    return {
+      success: true,
+      message: `Connection successful. Total records: ${data.count}. ${fieldInfo}`,
+      details: {
+        count: data,
+        sample: sampleData
+      }
+    };
+  } catch (error) {
+    console.error('Connection test error:', error);
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : 'Unknown error during connection test',
+      details: error
     };
   }
 };
