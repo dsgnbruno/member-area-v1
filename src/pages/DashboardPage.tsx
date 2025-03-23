@@ -1,24 +1,31 @@
-import React, { useState } from 'react';
-import { courses } from '../data/courses';
+import React, { useState, useEffect } from 'react';
+import { courses, getAvailableCourses } from '../data/courses';
 import { Clock, Award, BookOpen, TrendingUp, Star, ChevronRight, Lock } from 'lucide-react';
 import CourseCard from '../components/CourseCard';
 import { Link } from 'react-router-dom';
+import { hasLifetimeAccess } from '../services/authService';
 
 const DashboardPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'inProgress' | 'recommended'>('recommended');
+  const [availableCourses, setAvailableCourses] = useState(courses);
   
-  // User role simulation - in a real app, this would come from auth context or API
-  const userHasLifetimeAccess = false; // Set to true to hide premium cards
+  // Get user status
+  const userHasLifetimeAccess = hasLifetimeAccess();
+  
+  useEffect(() => {
+    // Update available courses based on user status
+    setAvailableCourses(getAvailableCourses());
+  }, []);
   
   // Calculate user stats
-  const totalCourses = courses.length;
-  const inProgressCourses = courses.filter(course => course.progress > 0 && course.progress < 100);
-  const completedCourses = courses.filter(course => course.progress === 100);
-  const recommendedCourses = courses.filter(course => course.progress === 0);
+  const totalCourses = availableCourses.length;
+  const inProgressCourses = availableCourses.filter(course => course.progress > 0 && course.progress < 100);
+  const completedCourses = availableCourses.filter(course => course.progress === 100);
+  const recommendedCourses = availableCourses.filter(course => course.progress === 0 && course.status !== 'locked');
   
   // Calculate average progress
-  const totalProgress = courses.reduce((sum, course) => sum + course.progress, 0);
-  const averageProgress = totalProgress / totalCourses;
+  const totalProgress = availableCourses.reduce((sum, course) => sum + course.progress, 0);
+  const averageProgress = totalCourses > 0 ? totalProgress / totalCourses : 0;
   
   // Get the course with the highest progress that's not completed
   const currentCourse = inProgressCourses.sort((a, b) => b.progress - a.progress)[0];
@@ -41,7 +48,9 @@ const DashboardPage: React.FC = () => {
             </div>
             <div className="flex flex-wrap w-full md:w-auto gap-2 justify-start md:justify-end">
               <Link to="/settings" className="btn btn-outline flex-1 md:flex-none">Account Settings</Link>
-              <a href="#premium-courses" className="btn btn-primary flex-1 md:flex-none">Explore Premium</a>
+              {!userHasLifetimeAccess && (
+                <a href="#premium-courses" className="btn btn-primary flex-1 md:flex-none">Explore Premium</a>
+              )}
             </div>
           </div>
         </div>

@@ -1,4 +1,5 @@
 import { Course } from '../types';
+import { hasLifetimeAccess } from '../services/authService';
 
 // Sample course data
 export const courses: Course[] = [
@@ -300,4 +301,18 @@ export const toggleBookmark = (id: string): void => {
 // Function to get bookmarked courses
 export const getBookmarkedCourses = (): Course[] => {
   return courses.filter(course => course.bookmarked);
+};
+
+// Function to get available courses based on user status
+export const getAvailableCourses = (): Course[] => {
+  // If user has lifetime access, all courses are available
+  if (hasLifetimeAccess()) {
+    return courses.map(course => ({
+      ...course,
+      status: 'active' // Override locked status for lifetime users
+    }));
+  }
+  
+  // Otherwise, return courses as is
+  return courses;
 };

@@ -116,9 +116,26 @@ export const loginWithNocoDB = async (credentials: LoginCredentials): Promise<Au
     if (storedPassword === credentials.password) {
       console.log('Password match successful');
       
+      // Check if user has refund status
+      const hasRefund = user.refund === true || user.refund === 'yes' || user.Refund === true || user.Refund === 'yes';
+      
+      if (hasRefund) {
+        console.log('User has refund status, access denied');
+        return {
+          success: false,
+          message: 'Your account access has been revoked. Please contact support for assistance.'
+        };
+      }
+      
       // Store authentication state
       localStorage.setItem('userLoggedIn', 'true');
-      localStorage.setItem('userData', JSON.stringify(user));
+      localStorage.setItem('userData', JSON.stringify({
+        ...user,
+        // Normalize user data fields
+        userType: user.userType || user.UserType || 'user',
+        lifetime: user.lifetime === true || user.lifetime === 'yes' || user.Lifetime === true || user.Lifetime === 'yes',
+        refund: hasRefund
+      }));
       
       return {
         success: true,
@@ -231,4 +248,46 @@ export const logout = (): void => {
   localStorage.removeItem('userLoggedIn');
   sessionStorage.removeItem('userLoggedIn');
   localStorage.removeItem('userData');
+};
+
+// Function to check if current user is admin
+export const isAdmin = (): boolean => {
+  try {
+    const userData = localStorage.getItem('userData');
+    if (!userData) return false;
+    
+    const user = JSON.parse(userData);
+    return user.userType === 'admin' || user.UserType === 'admin';
+  } catch (error) {
+    console.error('Error checking admin status:', error);
+    return false;
+  }
+};
+
+// Function to check if user has lifetime access
+export const hasLifetimeAccess = (): boolean => {
+  try {
+    const userData = localStorage.getItem('userData');
+    if (!userData) return false;
+    
+    const user = JSON.parse(userData);
+    return user.lifetime === true || user.Lifetime === true || 
+           user.lifetime === 'yes' || user.Lifetime === 'yes';
+  } catch (error) {
+    console.error('Error checking lifetime status:', error);
+    return false;
+  }
+};
+
+// Function to get current user data
+export const getCurrentUser = (): any => {
+  try {
+    const userData = localStorage.getItem('userData');
+    if (!userData) return null;
+    
+    return JSON.parse(userData);
+  } catch (error) {
+    console.error('Error getting current user:', error);
+    return null;
+  }
 };

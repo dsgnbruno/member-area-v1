@@ -36,3 +36,22 @@ export interface Resource {
   type: 'pdf' | 'link' | 'code';
   url: string;
 }
+
+export interface User {
+  id: string;
+  email: string;
+  name: string;
+  userType: 'user' | 'admin';
+  refund: boolean;
+  lifetime: boolean;
+}
+
+export interface Notification {
+  id: string;
+  title: string;
+  description: string;
+  couponCode: string;
+  discount: number;
+  expiryDate: string;
+  isActive: boolean;
+}
