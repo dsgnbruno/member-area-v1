@@ -21,15 +21,13 @@ interface AuthResponse {
 
 export const loginWithNocoDB = async (credentials: LoginCredentials): Promise<AuthResponse> => {
   try {
-    console.log('Attempting login with:', credentials.email);
+    // First, verify we can connect to NocoDB
+    // For v0.262.4, we need to use the correct API endpoint format
+    const testConnectionUrl = `${NOCODB_CONFIG.host}api/v1/db/meta/projects/${NOCODB_CONFIG.baseId}/tables`;
     
-    // For v0.262.4, the correct data API endpoint format
-    const apiUrl = `${NOCODB_CONFIG.host}api/v1/db/data/noco/${NOCODB_CONFIG.baseId}/${NOCODB_CONFIG.tableId}`;
+    console.log('Testing connection to:', testConnectionUrl);
     
-    // First, try to get all records to verify connection and see the actual data structure
-    console.log('Testing connection to:', apiUrl);
-    
-    const testResponse = await fetch(apiUrl, {
+    const testResponse = await fetch(testConnectionUrl, {
       method: 'GET',
       headers: {
         'xc-token': NOCODB_CONFIG.apiToken,
@@ -45,32 +43,34 @@ export const loginWithNocoDB = async (credentials: LoginCredentials): Promise<Au
       };
     }
     
-    const allData = await testResponse.json();
-    console.log('All data structure:', allData);
+    // Now find the user by email using the correct v0.262.4 API format
+    const apiUrl = `${NOCODB_CONFIG.host}api/v1/db/data/v1/${NOCODB_CONFIG.baseId}/${NOCODB_CONFIG.tableId}`;
+    const whereClause = `(${NOCODB_CONFIG.emailFieldId},eq,${encodeURIComponent(credentials.email)})`;
     
-    // Check if we got a list property in the response (v0.262.4 format)
-    const allUsers = allData.list || allData;
+    console.log('API URL:', `${apiUrl}?where=${whereClause}`);
     
-    if (!Array.isArray(allUsers)) {
-      console.error('Unexpected response format:', allData);
-      return {
-        success: false,
-        message: 'Unexpected response format from authentication service'
-      };
+    const response = await fetch(`${apiUrl}?where=${whereClause}`, {
+      method: 'GET',
+      headers: {
+        'xc-token': NOCODB_CONFIG.apiToken,
+        'Accept': 'application/json'
+      }
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('API Error:', response.status, errorText);
+      throw new Error(`API request failed with status ${response.status}: ${errorText}`);
     }
     
-    // Log the first user to see the actual field structure
-    if (allUsers.length > 0) {
-      console.log('Sample user structure:', allUsers[0]);
-    }
+    const responseData = await response.json();
+    console.log('Response data:', responseData);
     
-    // Find the user by email manually from all users
-    const user = allUsers.find(u => 
-      u[NOCODB_CONFIG.emailFieldId] === credentials.email || 
-      u.email === credentials.email
-    );
+    // In v0.262.4, the response format might be different
+    const users = Array.isArray(responseData) ? responseData : (responseData.list || []);
     
-    if (!user) {
+    // Check if user exists
+    if (users.length === 0) {
       console.log('No user found with email:', credentials.email);
       return {
         success: false,
@@ -78,36 +78,37 @@ export const loginWithNocoDB = async (credentials: LoginCredentials): Promise<Au
       };
     }
     
-    // Log the found user for debugging
-    console.log('Found user:', user);
+    // Get the first matching user
+    const userData = users[0];
     
-    // Try both the field ID and common field names for password
-    const storedPassword = user[NOCODB_CONFIG.passwordFieldId] || user.password;
+    // Log the actual field values for debugging
+    console.log('Found user:', userData);
+    console.log('Email field value:', userData[NOCODB_CONFIG.emailFieldId]);
+    console.log('Password field value:', userData[NOCODB_CONFIG.passwordFieldId]);
+    console.log('Provided password:', credentials.password);
     
+    // Get the password field from the response
+    const storedPassword = userData[NOCODB_CONFIG.passwordFieldId];
+    
+    // Check if password field exists in the response
     if (storedPassword === undefined) {
-      console.error('Password field not found in user data');
-      console.log('Available fields:', Object.keys(user));
+      console.error('Password field not found in response');
       return {
         success: false,
         message: 'Authentication error: Password field not found'
       };
     }
     
-    console.log('Comparing passwords:', {
-      provided: credentials.password,
-      stored: storedPassword
-    });
-    
     // Compare the provided password with the stored password
-    if (credentials.password === storedPassword) {
+    if (storedPassword === credentials.password) {
       // Password matches, login successful
       localStorage.setItem('userLoggedIn', 'true');
-      localStorage.setItem('userData', JSON.stringify(user));
+      localStorage.setItem('userData', JSON.stringify(userData));
       
       return {
         success: true,
         message: 'Login successful',
-        user: user
+        user: userData
       };
     } else {
       // Password doesn't match
